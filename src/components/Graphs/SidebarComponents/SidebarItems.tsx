@@ -75,8 +75,7 @@ const SidebarItems = ({graph, className=""}: SidebarItemsProps) => {
 
         if (goal) {
            const treeItem = newTreeGoal({
-  type: getSymbolConfigByShape(String(goal.style.shape))?.label as Label,
-  content: "New Goal"
+  type: getSymbolConfigByShape(String(goal.style.shape))?.label as Label
 });
             dispatch(addGoal(treeItem));
             dispatch(addGoalToTree(treeItem));
