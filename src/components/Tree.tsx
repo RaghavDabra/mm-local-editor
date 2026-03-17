@@ -1,4 +1,4 @@
-import React, {useRef, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import WhoIcon from "/img/Stakeholder.png";
 import DoIcon from "/img/Function.png";
 import BeIcon from "/img/Cloud.png";
@@ -19,7 +19,7 @@ import {
 } from "./utils/GoalHint.tsx"
 
 import "./Tree.css";
-import {deleteGoalReferenceFromHierarchy, setTreeData} from "./context/treeDataSlice.ts";
+import {deleteGoalFromGoalList, deleteGoalReferenceFromHierarchy, setTreeData} from "./context/treeDataSlice.ts";
 
 // Inline style for element in Nestable, css style import not working
 const treeListStyle: React.CSSProperties = {
@@ -94,8 +94,49 @@ const Tree: React.FC<TreeProps> = ({
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
   const deletingItemRef = useRef<TreeGoal | null>(null);
 
+  // Track whether the goal currently being edited was empty when edit started
+  // (i.e. it was just created via drag-and-drop and has never been named).
+  // If so, cancelling or blurring without entering text should delete the goal.
+  const editingWasNewEmptyGoal = useRef<boolean>(false);
+
+  // Track the set of goal instanceIds already seen so we can detect newly added goals.
+  const knownInstanceIds = useRef<Set<InstanceId>>(new Set());
+
   const inputRef = useRef<HTMLInputElement>(null);
   const {treeData, dispatch} = useFileContext();
+
+  // ── Auto-enter edit mode when a new empty goal is dropped from the palette ──
+  // Every time treeData changes, look for goal nodes that have empty content and
+  // whose instanceId we haven't seen before.  Those are freshly drag-and-dropped
+  // symbols that need an immediate edit prompt.
+  useEffect(() => {
+    const findNewEmptyGoals = (nodes: TreeGoal[]): TreeGoal | null => {
+      for (const node of nodes) {
+        if (!knownInstanceIds.current.has(node.instanceId)) {
+          // Mark every node we encounter as known going forward.
+          knownInstanceIds.current.add(node.instanceId);
+          if (isEmptyGoal(node)) {
+            return node; // first new empty goal wins
+          }
+        }
+        if (node.children) {
+          const found = findNewEmptyGoals(node.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const newEmptyGoal = findNewEmptyGoals(treeData);
+    if (newEmptyGoal) {
+      editingWasNewEmptyGoal.current = true;
+      setEditingItemId(newEmptyGoal.id);
+      setEditedText("");
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  }, [treeData]);
 
   // Delete item by its id
   const deleteItem = () => {
@@ -160,26 +201,28 @@ const Tree: React.FC<TreeProps> = ({
     const treeItem = item as TreeGoal;
     const isEditing = editingItemId === treeItem.id;
 
-    // Handle when edit button clicked
-    const handleEdit = () => {
-      // Allow editing for any goal with content (same as original logic)
-      if (isEmptyGoal(treeItem)) {
-        return;
-      }
+    // Delete a goal that was never given a name (created via drag-and-drop then
+    // abandoned).  This removes both the tree reference and the goal-list entry.
+    const deleteNewEmptyGoal = (goal: TreeGoal) => {
+      dispatch(deleteGoalReferenceFromHierarchy(goal));
+      dispatch(deleteGoalFromGoalList(goal));
+    };
 
+    // Handle when edit button clicked.
+    // Empty goals (just dropped from palette) are explicitly allowed here —
+    // that is the whole point of the fix.
+    const handleEdit = () => {
+      editingWasNewEmptyGoal.current = isEmptyGoal(treeItem);
       setEditingItemId(treeItem.id);
       setEditedText(treeItem.content);
-      // Defer code execution until after the browser has finished rendering updates to the DOM.
       requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
+        inputRef.current?.focus();
       });
     };
 
     // Handle double click to start editing
     const handleDoubleClick = () => {
-      if (!isEditing && !isEmptyGoal(treeItem)) {
+      if (!isEditing) {
         handleEdit();
       }
     };
@@ -193,19 +236,25 @@ const Tree: React.FC<TreeProps> = ({
           // On save callback
           handleSynTableTree(treeItem, content);
           setEditingItemId(null);
+          editingWasNewEmptyGoal.current = false;
         },
         () => {
-          // On cancel callback
+          // On cancel callback — content was empty, so cancel
           handleCancel();
         }
       );
     };
 
-    // Handle cancel edited text
+    // Handle cancel edited text.
+    // If the goal was brand-new and still has no content, remove it entirely so
+    // the hierarchy is not left with a permanently-unnamed placeholder node.
     const handleCancel = () => {
+      if (editingWasNewEmptyGoal.current && isEmptyGoal(treeItem)) {
+        deleteNewEmptyGoal(treeItem);
+      }
       setEditingItemId(null);
       setEditedText(treeItem.content);
-      // Defer code execution until after the browser has finished rendering updates to the DOM.
+      editingWasNewEmptyGoal.current = false;
       requestAnimationFrame(() => {
         setDisableOnBlur(false);
       });
@@ -220,6 +269,7 @@ const Tree: React.FC<TreeProps> = ({
           // On save callback
           handleSynTableTree(treeItem, content);
           setEditingItemId(null);
+          editingWasNewEmptyGoal.current = false;
         },
         () => {
           // On cancel callback
@@ -240,6 +290,7 @@ const Tree: React.FC<TreeProps> = ({
           // On save callback
           handleSynTableTree(treeItem, content);
           setEditingItemId(null);
+          editingWasNewEmptyGoal.current = false;
         },
         () => {
           // On cancel callback
@@ -286,9 +337,10 @@ const Tree: React.FC<TreeProps> = ({
               onKeyDown={handleEditKeyDown}
               className={`tree-input ${isTextEmpty(editedText) ? "is-invalid" : ""}`}
               style={treeInputStyle}
+              placeholder="Enter goal name…"
             />
           ) : (
-            treeItem.content
+            treeItem.content || <em style={{color: "#999"}}>unnamed goal</em>
           )}
         </div>
 
@@ -304,10 +356,6 @@ const Tree: React.FC<TreeProps> = ({
         <div
           className="edit-icon"
           onClick={isEditing ? handleSave : handleEdit}
-          style={{
-            opacity: !isEditing && isEmptyGoal(treeItem) ? 0.5 : 1,
-            cursor: !isEditing && isEmptyGoal(treeItem) ? 'not-allowed' : 'pointer'
-          }}
         >
           {isEditing ? (
             <BsCheckCircle size={ICON_SIZE} />

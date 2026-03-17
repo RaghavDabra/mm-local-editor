@@ -74,9 +74,10 @@ const SidebarItems = ({graph, className=""}: SidebarItemsProps) => {
         const goal = graph.cloneCell(prototype);
 
         if (goal) {
-            const treeItem = newTreeGoal({
-                type: getSymbolConfigByShape(String(goal.style.shape))?.label as Label
-            });
+           const treeItem = newTreeGoal({
+  type: getSymbolConfigByShape(String(goal.style.shape))?.label as Label,
+  content: "New Goal"
+});
             dispatch(addGoal(treeItem));
             dispatch(addGoalToTree(treeItem));
         }

@@ -11,12 +11,13 @@ export function canEditGoal(goal: { content: string }): boolean {
   return !isEmptyGoal(goal);
 }
 
-// Validate if save should be allowed (prevent saving empty content to existing goals)
+// Validate if save should be allowed (prevent saving empty content)
 export function canSaveContentEdit(originalContent: string, newContent: string): boolean {
-  // Allow save if:
-  // 1. New content is not empty, OR
-  // 2. Original content was empty (initial entry)
-  return !isTextEmpty(newContent) || (isTextEmpty(originalContent)&& !isTextEmpty(newContent));
+  // Only allow saving if the new content is non-empty.
+  // We deliberately ignore originalContent here: even a brand-new goal (whose
+  // originalContent is "") must be given a real name before it can be saved.
+  void originalContent; // suppress unused-variable warnings
+  return !isTextEmpty(newContent);
 }
 
 // Handle content edit save with validation
