@@ -2,7 +2,7 @@ import React, {createContext, PropsWithChildren, useContext, useEffect, useReduc
 import {createInitialState, treeDataSlice} from "./treeDataSlice.ts";
 import {initialTabs} from "../../data/initialTabs.ts";
 import {Cluster, ClusterGoal, GoalType, Label, newTreeItem, TabContent, TreeItem, TreeNode} from "../types.ts";
-import useLocalStorage from "../utils/useLocalStorage.tsx"
+import useSessionStorage from "../utils/useSessionStorage.tsx"
 
 // This hook manages the goals that are in use in the motivational model.
 //
@@ -160,11 +160,12 @@ const FileProvider: React.FC<PropsWithChildren> = ({children}) => {
     // const treeDataSlice = createTreeDataSlice();
     // XXX note: we should pass in initialTabs and tree if they exist in localStorage
 
-    const [treeData, setTreeData] = useLocalStorage<TreeItem[]>(
+    // Per-tab sessionStorage so multiple tabs don't overwrite each other (#342)
+    const [treeData, setTreeData] = useSessionStorage<TreeItem[]>(
         LocalStorageType.TREE,
         []
     );
-    const [tabData, setTabData] = useLocalStorage<typeof initialTabs>(
+    const [tabData, setTabData] = useSessionStorage<typeof initialTabs>(
         LocalStorageType.TAB,
         initialTabs
     );

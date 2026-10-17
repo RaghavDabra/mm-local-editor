@@ -105,6 +105,17 @@ If you followed the instructions above correctly, you should be able to open the
 https://localhost:5173/mm-local-editor/
 ```
 Feel free to have a play with it to try out its functionalities!
+
+### Saving your work and browser storage
+
+The editor keeps your in-progress model in the browser's **per-tab** storage
+(`sessionStorage`). This means:
+
+- **Each browser tab is independent.** You can open the app in two tabs and work
+  on a different model in each; they will not overwrite one another.
+- **Closing a tab clears that tab's in-progress model.** To keep a model, use
+  **Save** to export it to a JSON file, and **Open Model** to load it back.
+
 ## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
