@@ -105,6 +105,13 @@ If you followed the instructions above correctly, you should be able to open the
 https://localhost:5173/mm-local-editor/
 ```
 Feel free to have a play with it to try out its functionalities!
+
+## Documentation
+
+Project notes and evaluations live in the [`docs/`](./docs) directory:
+
+- [Authentication options evaluation](./docs/authentication-evaluation.md) — whether user authentication is necessary for the project, and the options if a backend is added later (issue #346).
+
 ## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
